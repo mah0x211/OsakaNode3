@@ -1,0 +1,247 @@
+<html>
+<head>
+<style type="text/css">
+body {
+    background-color: #f6f6f6;
+}
+.log {
+    color: red;
+}
+header,h1,p {
+    margin: 0;
+    padding: 0;
+}
+header {
+    padding: 1ex;
+    border-bottom: 1px #ddd solid;
+}
+article {
+    padding-bottom: 1em;
+    overflow: hidden;
+    background-color: #efefef;
+    border: 1px #ccc solid;
+    border-top-color: #fefefe;
+    border-radius: 1ex;
+    box-shadow: 0 1px 10px #ccc;
+}
+form {
+    display: block;
+    margin: 0;
+    padding: 1em;
+    font-size: .9em;
+    background-color: #f9f9f9;
+    border-top: 1px #fff solid;
+    border-bottom: 1px #ddd solid;
+}
+form input,
+form textarea {
+    display: block;
+    padding: 1ex;
+    width: 100%;
+    border: 1px #ddd solid;
+    border-radius: 1ex;
+    box-shadow: inset 0 1px 5px #eee;
+}
+form textarea {
+    height: 5em;
+}
+form button {
+    display: inline-block;
+    color: #fff;
+    font-size: 1em;
+    font-weight: bold;
+    text-shadow: 0 1px 0 #666;
+    background-color: #eee;
+    border: 1px #aaa solid;
+    border-radius: 3px;
+    box-shadow: 0 1px 0 #fff;
+    background-image: -webkit-gradient( linear, left top, left bottom, from(#49f), to(#17d) );
+}
+.Ctrl {
+    padding: 1ex 0 0;
+    font-size: .9em;
+    text-align: right;
+}
+#Log {
+    display: block;
+    margin: 0;
+    padding: 0;
+    font-size: .9em;
+    border-top: 1px #fff solid;
+    background-color: #efefef;
+}
+#Log li {
+    clear: both;
+    margin: 0;
+    padding: 1ex;
+    list-style: none;
+}
+#Log li small {
+    display: block;
+    color: #136;
+    font-size: .75em;
+    font-weight: bold;
+    text-align: right;
+}
+#Log li:nth-child(2n) {
+    background-color: #f9f9f9;
+}
+#Log li.private {
+    color: #900;
+}
+#Log li.private:before {
+    float: right;
+    content: 'private';
+    padding: 3px 1ex;
+    color: #fff;
+    font-size: 0.7em;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 #c00;
+    line-height: 1;
+    background-color: #a00;
+    border-radius: 3px;
+    box-shadow: 0 1px 10px #ccc;
+}
+
+</style>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+var cli = undefined;
+
+function Client()
+{
+    if( !( this instanceof Client ) ){
+        new Client();
+        return;
+    }
+    var cookie = document.cookie.split('=');
+    
+    cli = this;
+    cli.form = document.forms[0];
+    cli.who = document.getElementById('Who');
+    cli.log = document.getElementById('Log');
+    cli.line = document.createElement('li');
+    
+    // setup form
+    cli.form.addEventListener( 'submit', cli.nullEvent );
+    cli.form.sendBtn.addEventListener( 'click', cli.send );
+    cli.form.usr.addEventListener( 'blur', cli.saveUsr );
+    if( cookie ){
+        cli.form.usr.value = encodeURIComponent( cookie.pop() );
+    }
+    cli.who.textContent = 'N/A';
+    
+    // connect to sock server
+    cli.sock = io.connect('http://localhost:8080/');
+    // add sock event
+    cli.sock.on( 'connected', cli.onConnected );
+    cli.sock.on( 'who', cli.onWho );
+    cli.sock.on( 'message', cli.onMessage );
+}
+
+Client.prototype.saveUsr = function(ev)
+{
+    document.cookie = 'uname=' + escape( cli.form.usr.value );
+};
+Client.prototype.nullEvent = function(ev)
+{
+    console.log('submit null');
+    ev.returnValue = false;
+};
+
+Client.prototype.dateValue = function( epoch )
+{
+    var date = '';
+    
+    if( isFinite( +epoch ) ){
+        date = (new Date( epoch )).toString();
+    }
+    else {
+        date = 'invalid date[' + escape( epoch ) + ']';
+    }
+    return date;
+};
+
+Client.prototype.addLog = function( msg, date, private )
+{
+    var child = cli.line.cloneNode()
+        small = document.createElement('small');
+    
+    if( private ){
+        child.className = 'private';
+    }
+    child.textContent = msg;
+    small.textContent = date;
+    child.appendChild( small );
+    cli.log.insertBefore( child, cli.log.firstChild );
+};
+
+Client.prototype.send = function( ev )
+{
+    var chunk = {
+            usr: cli.form.usr.value,
+            msg: cli.form.msg.value
+        };
+
+    console.log( 'click send' );
+    if( chunk.usr && chunk.msg ){
+        console.log( 'emit message' );
+        console.log( chunk );
+        cli.sock.emit( 'message', chunk );
+    }
+};
+
+Client.prototype.onConnected = function( chunk )
+{
+    var msg = [
+            'connected: ',
+            escape( chunk.status )
+        ].join('');
+    
+    console.log( 'connected' );
+    cli.addLog( msg, cli.dateValue( chunk.date ) );
+};
+
+Client.prototype.onWho = function( chunk )
+{
+    cli.who.textContent = ( isFinite( +chunk.who ) ) ? chunk.who : 'N/A';
+};
+
+Client.prototype.onMessage = function( chunk )
+{
+    var msg = [
+            chunk.usr + ': ',
+            chunk.msg,
+        ].join('');
+    
+    console.log( 'message' );
+    console.log( chunk );
+    cli.addLog( msg, cli.dateValue( chunk.date ), chunk.private );
+};
+
+window.onload = Client;
+</script>
+</head>
+<body>
+<article>
+<header>
+<h1>ChatApp with Socket.IO</h1>
+</header>
+<form>
+<p>
+Your Name: <input type='text' name='usr' />
+Message Body:<br />
+<textarea name='msg'></textarea>
+</p>
+<p class="Ctrl">
+<b id="Who">-</b>conn <button name="sendBtn">Say!</button>
+</p>
+</form>
+<section>
+<ul id='Log'>
+</ul>
+</section>
+</article>
+
+</body>
+</html>

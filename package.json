@@ -1,0 +1,20 @@
+{
+    "name" : "OsakaNode3",
+    "homepage": "http://github.com/mah0x211/OsakaNode3",
+    "version" : "0.0.1",
+    "author": "Masatoshi Teruya",
+    "web": "https://twitter.com/mah0x211",
+    "engines" : {
+        "node" : ">= 0.6.14" 
+    },
+    "scripts": {
+        "start": "node ./chat.js"
+    },
+    "repository": {
+        "type" : "git",
+        "url": "http://github.com/mah0x211/OsakaNode3.git" 
+    },
+    "dependencies": {
+       "socket.io": "0.9.6"
+    }
+}
